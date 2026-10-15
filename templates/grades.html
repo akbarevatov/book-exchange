@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Grades — Student Compass{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div><h1>Grades</h1><p>Enter marks as you get them; the target is recalculated live</p></div>
+</div>
+
+{% if results %}
+<form method="post">{% csrf_token %}
+  <div class="stack">
+    {% for r in results %}
+      <section class="card">
+        <div class="row" style="margin-bottom:var(--s4)">
+          <div>
+            <span class="label mono">{{ r.enrollment.course.code }}</span>
+            <h2>{{ r.enrollment.course.title }}</h2>
+          </div>
+          <span class="spacer"></span>
+          <div style="text-align:right">
+            {% if r.enrollment.has_any_grade %}
+              <p class="metric">{{ r.projected }}</p>
+              <span class="pill">{{ r.projected_letter }} · {{ r.projected_gpa }}</span>
+              <p class="small muted" style="margin:var(--s1) 0 0">{% if r.enrollment.is_fully_graded %}final{% else %}projected · {{ r.total }} banked{% endif %}</p>
+            {% else %}
+              <p class="metric muted">—</p>
+              <p class="small muted" style="margin:var(--s1) 0 0">nothing graded yet</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>Assessment</th><th>Type</th><th class="num">Weight</th><th class="num">Score</th></tr>
+          </thead>
+          <tbody>
+            {% for row in r.rows %}
+              <tr>
+                <td>{{ row.assessment.name }}</td>
+                <td class="small muted">{{ row.assessment.get_kind_display }}</td>
+                <td class="num">{{ row.assessment.weight|floatformat:0 }}%</td>
+                <td class="num">
+                  {% if row.assessment.auto_from_tasks %}
+                    <span class="mono muted">{{ row.percent|floatformat:1|default:"—" }}</span>
+                    <span class="pill">auto</span>
+                  {% else %}
+                    <input class="score-input" type="number" step="0.1" min="0"
+                           name="score_{{ row.assessment.id }}"
+                           value="{{ row.assessment.score.obtained|default_if_none:'' }}"
+                           aria-label="Score for {{ row.assessment.name }}">
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="small muted">No assessments defined yet — add them in the admin.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="row small" style="margin-top:var(--s4);flex-wrap:wrap">
+          <span class="muted">Projected if you keep this average</span>
+          <span class="mono">{{ r.projected }}</span>
+          <span class="spacer"></span>
+          {% if r.status.status == 'reached' %}
+            <span class="pill ok">Target of {{ r.target|floatformat:0 }} reached</span>
+          {% elif r.status.status == 'needed' %}
+            <span class="pill warn">Need {{ r.status.needed_percent }}% on what's left for {{ r.target|floatformat:0 }}</span>
+          {% else %}
+            <span class="pill risk">
+              {% if r.status.reason == 'no_work_remaining' %}Target of {{ r.target|floatformat:0 }} no longer reachable
+              {% else %}Out of reach — would need {{ r.status.needed_percent }}%{% endif %}
+            </span>
+          {% endif %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+  <div class="row" style="margin-top:var(--s5)">
+    <button class="btn" type="submit">Save scores</button>
+  </div>
+</form>
+{% else %}
+  <div class="card empty">
+    <div class="mark">◈</div>
+    <h2>Nothing to grade yet</h2>
+    <p>Once you've added a course and its assessments, this is where you'll see what you need on the final to land the grade you want.</p>
+    <a class="btn" href="{% url 'add_course' %}">Add course</a>
+  </div>
+{% endif %}
+
+{% endblock %}

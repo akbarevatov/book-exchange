@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Add course — Student Compass{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div><h1>Add course</h1><p>Pick from the shared catalogue, or create the entry once for everyone</p></div>
+</div>
+
+<div class="card" style="max-width:640px">
+  <form method="post">{% csrf_token %}
+    {% include '_form.html' %}
+    <div class="row">
+      <button class="btn" type="submit">Add course</button>
+      <a class="btn ghost" href="{% url 'courses' %}">Cancel</a>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

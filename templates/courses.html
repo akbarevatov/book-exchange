@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Courses — Student Compass{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div><h1>Courses</h1><p>What you're enrolled in this semester</p></div>
+  <span class="spacer"></span>
+  <a class="btn" href="{% url 'add_course' %}">Add course</a>
+</div>
+
+{% if enrollments %}
+  <div class="grid cols-2">
+    {% for e in enrollments %}
+      <article class="card">
+        <div class="row">
+          <span class="label mono">{{ e.course.code }}</span>
+          <span class="spacer"></span>
+          {% if e.course.is_elective %}<span class="pill">elective</span>{% endif %}
+          <span class="pill">{{ e.course.credits }} cr</span>
+        </div>
+        <h2 style="margin:var(--s2) 0 var(--s3)">{{ e.course.title }}</h2>
+        {% if e.teacher %}<p class="small muted" style="margin:0 0 var(--s2)">{{ e.teacher }}{% if e.office %} · {{ e.office }}{% endif %}</p>{% endif %}
+        <p class="small muted" style="margin:0 0 var(--s3)">
+          {{ e.course.lecture_hours }} lec · {{ e.course.tutorial_hours }} tut/lab
+          {% with pre=e.course.prerequisites.all %}{% if pre %}
+            · needs {% for p in pre %}<span class="mono">{{ p.code }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}
+          {% endif %}{% endwith %}
+        </p>
+        <div class="row small">
+          {% if e.has_any_grade %}
+            <span class="muted">{% if e.is_fully_graded %}Final{% else %}Projected{% endif %}</span>
+            <span class="mono">{{ e.projected_total }}</span>
+            <span class="pill">{{ e.projected_letter }}</span>
+          {% else %}
+            <span class="muted">No scores yet</span>
+          {% endif %}
+          <span class="spacer"></span>
+          <span class="muted">Target {{ e.target_score|floatformat:0 }}</span>
+        </div>
+        <div class="meter" style="margin-top:var(--s3)"><span style="width:{% if e.has_any_grade %}{{ e.projected_total }}{% else %}0{% endif %}%"></span></div>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card empty">
+    <div class="mark">◇</div>
+    <h2>No courses yet</h2>
+    <p>Add a course to start tracking assessments and grades. If a groupmate has already added it, you'll be able to reuse their setup.</p>
+    <a class="btn" href="{% url 'add_course' %}">Add course</a>
+  </div>
+{% endif %}
+
+{% endblock %}
