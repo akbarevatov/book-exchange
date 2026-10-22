@@ -1,0 +1,372 @@
+{% extends 'base.html' %}
+{% block title %}Book Exchanges — Compass Books{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Book Exchanges</h1>
+    <p>Coordinate direct peer book handovers, chat on-platform or via Telegram, and track loan deadlines</p>
+  </div>
+  <div class="spacer"></div>
+  <a href="{% url 'my_books' %}" class="btn ghost">
+    Manage My Listed Books
+  </a>
+</div>
+
+<!-- Metrics Overview -->
+<div class="grid cols-3" style="margin-bottom:var(--s6)">
+  <div class="card" style="padding:var(--s4)">
+    <div class="label" style="margin-bottom:var(--s1)">Active Borrowed Loans</div>
+    <div class="metric" style="color:var(--burgundy)">{{ active_loans_count }}</div>
+  </div>
+  <div class="card" style="padding:var(--s4)">
+    <div class="label" style="margin-bottom:var(--s1)">Coordinating Handovers</div>
+    <div class="metric" style="color:var(--ok)">{{ coordinating_count }}</div>
+  </div>
+  <div class="card" style="padding:var(--s4)">
+    <div class="label" style="margin-bottom:var(--s1)">Incoming Requests</div>
+    <div class="metric" style="color:var(--muted)">{{ incoming_requests_count }}</div>
+  </div>
+</div>
+
+<!-- Section 1: Books Borrowed by Me -->
+<div style="margin-bottom:var(--s7)">
+  <div style="display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s4)">
+    <h2 style="font-size:1.35rem">Books Borrowed by Me</h2>
+    <span class="pill" style="font-size:0.75rem">{{ borrowed_exchanges|length }}</span>
+  </div>
+
+  {% if borrowed_exchanges %}
+    <div class="stack" style="gap:var(--s5)">
+      {% for exchange in borrowed_exchanges %}
+        <div class="card" id="exchange-{{ exchange.pk }}" style="padding:var(--s5);border-left:4px solid {% if exchange.status == 'ACTIVE_BORROWED' %}var(--burgundy){% elif exchange.status == 'AWAITING_DROPOFF' %}var(--ok){% elif exchange.status == 'PENDING_APPROVAL' %}var(--warn){% else %}var(--border){% endif %}">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s4);flex-wrap:wrap;margin-bottom:var(--s4)">
+            
+            <div style="display:flex;gap:var(--s4);flex:1;min-width:280px">
+              {% if exchange.book.cover_image %}
+                <div style="width:75px;height:105px;background:var(--paper-sunk);border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;padding:2px">
+                  <img src="{{ exchange.book.cover_image.url }}" alt="{{ exchange.book.title }}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:2px">
+                </div>
+              {% else %}
+                <div style="width:75px;height:105px;border-radius:var(--radius-sm);background:linear-gradient(135deg, rgba(116,27,62,0.06), rgba(116,27,62,0.12));display:flex;align-items:center;justify-content:center;color:var(--burgundy);flex-shrink:0;border:1px solid var(--hairline-strong)">
+                  <span style="font-size:1.5rem">📖</span>
+                </div>
+              {% endif %}
+
+              <div style="flex:1">
+                <!-- Badges -->
+                <div style="display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2);flex-wrap:wrap">
+                  <span class="pill" style="font-size:0.7rem">{{ exchange.book.get_category_display }}</span>
+                  {% if exchange.status == 'ACTIVE_BORROWED' %}
+                    <span class="pill ok">Active Loan</span>
+                  {% elif exchange.status == 'AWAITING_DROPOFF' or exchange.status == 'AT_COUNCIL' %}
+                    <span class="pill ok" style="background:var(--ok-bg);color:var(--ok);font-weight:700">🤝 Accepted — Coordinate Meeting</span>
+                  {% elif exchange.status == 'PENDING_APPROVAL' %}
+                    <span class="pill warn">Pending Lender Approval</span>
+                  {% elif exchange.status == 'COMPLETED' or exchange.status == 'RETURNED_TO_COUNCIL' %}
+                    <span class="pill ok">Completed &amp; Returned</span>
+                  {% elif exchange.status == 'REJECTED' %}
+                    <span class="pill risk">Declined</span>
+                  {% elif exchange.status == 'CANCELLED' %}
+                    <span class="pill muted">Cancelled</span>
+                  {% endif %}
+
+                  {% if exchange.is_overdue %}
+                    <span class="pill risk" style="font-weight:700">⚠️ OVERDUE</span>
+                  {% endif %}
+                </div>
+
+                <!-- Book Title & Author -->
+                <h3 style="font-size:1.25rem;font-family:var(--font-display);margin-bottom:var(--s1)">
+                  {{ exchange.book.title }}
+                </h3>
+                <p class="muted small" style="margin:0 0 var(--s2)">
+                  by {{ exchange.book.author }}
+                  {% if exchange.book.course_code %}
+                    · <span class="mono" style="color:var(--ink)">{{ exchange.book.course_code }}</span>
+                  {% endif %}
+                </p>
+
+                <!-- Lender Info & Contacts -->
+                <div style="display:flex;align-items:center;gap:var(--s2);font-size:var(--t-small);color:var(--muted);flex-wrap:wrap;margin-bottom:var(--s2)">
+                  <span>Lender: <strong>{{ exchange.book.owner.get_full_name|default:exchange.book.owner.username }}</strong></span>
+                  <span class="mono" style="font-size:0.75rem;padding:2px 8px;background:var(--paper-sunk);border-radius:4px;color:var(--ink)">
+                    ID: {{ exchange.book.owner.profile.student_id|default:"—" }}
+                  </span>
+                  {% if exchange.book.owner.profile.telegram_clean %}
+                    <a href="{{ exchange.book.owner.profile.telegram_url }}" target="_blank" class="btn" style="padding:2px 10px;font-size:0.75rem;background:#229ED9;color:#FFFFFF;border-radius:999px;text-decoration:none;display:inline-flex;align-items:center;gap:3px">
+                      ✈️ Message @{{ exchange.book.owner.profile.telegram_clean }}
+                    </a>
+                  {% endif %}
+                  <span>· Loan: <strong class="mono">{{ exchange.requested_duration_weeks }} weeks</strong></span>
+                </div>
+
+                <!-- Due Date / Timing Details -->
+                {% if exchange.status == 'ACTIVE_BORROWED' and exchange.due_date %}
+                  <div style="background:var(--paper);border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);padding:var(--s2) var(--s4);display:inline-flex;align-items:center;gap:var(--s3);margin-top:var(--s1)">
+                    <div>
+                      <span class="label" style="font-size:0.65rem">Due Date</span>
+                      <div class="mono" style="font-size:0.95rem;color:{% if exchange.is_overdue %}var(--risk){% else %}var(--burgundy){% endif %};font-weight:700">
+                        {{ exchange.due_date|date:"M d, Y" }}
+                      </div>
+                    </div>
+                    {% if exchange.days_remaining is not None %}
+                      <span class="small mono" style="color:{% if exchange.days_remaining < 3 %}var(--risk){% else %}var(--muted){% endif %}">
+                        {% if exchange.is_overdue %}
+                          (Overdue by {{ exchange.days_remaining|stringformat:"d"|slice:"1:" }} days!)
+                        {% else %}
+                          ({{ exchange.days_remaining }} days remaining)
+                        {% endif %}
+                      </span>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="text-align:right;flex-shrink:0">
+              <div class="small muted mono" style="font-size:0.75rem;margin-bottom:var(--s2)">
+                Requested {{ exchange.created_at|date:"M d, Y" }}
+              </div>
+              {% if exchange.status == 'PENDING_APPROVAL' %}
+                <form method="post" action="{% url 'cancel_exchange' exchange.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn ghost danger" style="padding:var(--s1) var(--s3);font-size:var(--t-micro)">
+                    Cancel Request
+                  </button>
+                </form>
+              {% elif exchange.status == 'AWAITING_DROPOFF' or exchange.status == 'AT_COUNCIL' %}
+                <form method="post" action="{% url 'confirm_handover' exchange.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn" style="padding:var(--s2) var(--s4);font-size:var(--t-small);background:var(--ok);color:#fff">
+                    🤝 Confirm Received Book
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Direct In-Platform Chat Box -->
+          <div style="background:var(--paper-hover);border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);padding:var(--s3) var(--s4)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s2)">
+              <div style="font-size:var(--t-small);font-weight:700;display:flex;align-items:center;gap:6px">
+                <span>💬 Coordination Chat</span>
+                <span class="pill" style="font-size:0.65rem;background:#fff">{{ exchange.messages.all|length }}</span>
+              </div>
+              {% if exchange.book.owner.profile.telegram_clean %}
+                <a href="{{ exchange.book.owner.profile.telegram_url }}" target="_blank" class="small mono" style="color:#229ED9;text-decoration:none">
+                  Open Telegram @{{ exchange.book.owner.profile.telegram_clean }} →
+                </a>
+              {% endif %}
+            </div>
+
+            <!-- Message Feed -->
+            <div style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:var(--s2);padding:var(--s2) 0">
+              {% if exchange.messages.all %}
+                {% for msg in exchange.messages.all %}
+                  <div style="display:flex;flex-direction:column;align-items:{% if msg.sender == user %}flex-end{% else %}flex-start{% endif %}">
+                    <div style="font-size:0.7rem;color:var(--muted);margin-bottom:2px">
+                      <strong>{{ msg.sender.first_name|default:msg.sender.username }}</strong> · {{ msg.created_at|date:"M d, H:i" }}
+                    </div>
+                    <div style="max-width:80%;padding:var(--s2) var(--s3);border-radius:var(--radius-sm);font-size:var(--t-small);line-height:1.4;{% if msg.sender == user %}background:var(--burgundy-wash);border:1px solid rgba(116,27,62,0.2);color:var(--ink){% else %}background:#FFFFFF;border:1px solid var(--hairline-strong);color:var(--ink){% endif %}">
+                      {{ msg.message }}
+                    </div>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <p class="small muted" style="margin:var(--s1) 0;font-style:italic">
+                  No messages yet. Send a note below to arrange where and when to meet on campus!
+                </p>
+              {% endif %}
+            </div>
+
+            <!-- Send Message Input -->
+            <form method="post" action="{% url 'send_exchange_message' exchange.pk %}" style="display:flex;gap:var(--s2);margin-top:var(--s3)">
+              {% csrf_token %}
+              <input type="text" name="message" placeholder="Type a message (e.g. 'Can we meet at the library tomorrow at 2 PM?')..." required autocomplete="off" style="flex:1;padding:var(--s2) var(--s3);border-radius:var(--radius-sm);border:1px solid var(--border);font-family:var(--font-sans);font-size:var(--t-small);background:#fff">
+              <button type="submit" class="btn" style="padding:var(--s2) var(--s4);font-size:var(--t-small)">
+                Send
+              </button>
+            </form>
+          </div>
+
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card empty">
+      <div class="mark">📖</div>
+      <h2>No borrowed books yet</h2>
+      <p>
+        When you request a textbook from a peer student, it will appear here.
+        You can coordinate the handover directly in chat or via Telegram.
+      </p>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Section 2: Incoming Requests for My Books -->
+<div>
+  <div style="display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s4)">
+    <h2 style="font-size:1.35rem">Requests for My Books</h2>
+    {% if incoming_requests_count %}
+      <span class="pill warn" style="font-size:0.75rem">{{ incoming_requests_count }} Pending</span>
+    {% else %}
+      <span class="pill" style="font-size:0.75rem">{{ lending_exchanges|length }}</span>
+    {% endif %}
+  </div>
+
+  {% if lending_exchanges %}
+    <div class="stack" style="gap:var(--s5)">
+      {% for exchange in lending_exchanges %}
+        <div class="card" id="exchange-{{ exchange.pk }}" style="padding:var(--s5)">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s4);flex-wrap:wrap;margin-bottom:var(--s4)">
+            
+            <div style="display:flex;gap:var(--s4);flex:1;min-width:280px">
+              {% if exchange.book.cover_image %}
+                <div style="width:75px;height:105px;background:var(--paper-sunk);border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;padding:2px">
+                  <img src="{{ exchange.book.cover_image.url }}" alt="{{ exchange.book.title }}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:2px">
+                </div>
+              {% else %}
+                <div style="width:75px;height:105px;border-radius:var(--radius-sm);background:linear-gradient(135deg, rgba(116,27,62,0.06), rgba(116,27,62,0.12));display:flex;align-items:center;justify-content:center;color:var(--burgundy);flex-shrink:0;border:1px solid var(--hairline-strong)">
+                  <span style="font-size:1.5rem">📖</span>
+                </div>
+              {% endif %}
+
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2);flex-wrap:wrap">
+                  <span class="pill" style="font-size:0.7rem">{{ exchange.get_status_display }}</span>
+                  <span class="small muted">Requested by <strong>{{ exchange.borrower.get_full_name|default:exchange.borrower.username }}</strong></span>
+                  <span class="mono" style="font-size:0.75rem;padding:2px 8px;background:var(--paper-sunk);border-radius:4px">
+                    ID: {{ exchange.borrower.profile.student_id|default:"—" }}
+                  </span>
+                  {% if exchange.borrower.profile.telegram_clean %}
+                    <a href="{{ exchange.borrower.profile.telegram_url }}" target="_blank" class="btn" style="padding:2px 10px;font-size:0.75rem;background:#229ED9;color:#FFFFFF;border-radius:999px;text-decoration:none;display:inline-flex;align-items:center;gap:3px">
+                      ✈️ Message @{{ exchange.borrower.profile.telegram_clean }}
+                    </a>
+                  {% endif %}
+                </div>
+
+                <h3 style="font-size:1.25rem;font-family:var(--font-display);margin-bottom:var(--s1)">
+                  {{ exchange.book.title }}
+                </h3>
+                <p class="small muted" style="margin:0 0 var(--s2)">
+                  Duration requested: <strong class="mono">{{ exchange.requested_duration_weeks }} weeks</strong>
+                  {% if exchange.borrower_note %}
+                    · Note: “{{ exchange.borrower_note }}”
+                  {% endif %}
+                </p>
+
+                {% if exchange.status == 'ACTIVE_BORROWED' and exchange.due_date %}
+                  <div style="background:var(--paper);border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);padding:var(--s2) var(--s4);display:inline-flex;align-items:center;gap:var(--s3)">
+                    <div>
+                      <span class="label" style="font-size:0.65rem">Return Due Date</span>
+                      <div class="mono" style="font-size:0.95rem;color:{% if exchange.is_overdue %}var(--risk){% else %}var(--burgundy){% endif %};font-weight:700">
+                        {{ exchange.due_date|date:"M d, Y" }}
+                      </div>
+                    </div>
+                    {% if exchange.days_remaining is not None %}
+                      <span class="small mono" style="color:var(--muted)">
+                        ({{ exchange.days_remaining }} days remaining)
+                      </span>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Lender Response Actions -->
+            <div style="text-align:right;flex-shrink:0">
+              <div class="small muted mono" style="font-size:0.75rem;margin-bottom:var(--s2)">
+                Requested {{ exchange.created_at|date:"M d, Y" }}
+              </div>
+              {% if exchange.status == 'PENDING_APPROVAL' %}
+                <div style="display:flex;gap:var(--s2)">
+                  <form method="post" action="{% url 'respond_exchange' exchange.pk 'approve' %}" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn" style="padding:var(--s1) var(--s4);font-size:var(--t-small)">
+                      Approve Request
+                    </button>
+                  </form>
+                  <form method="post" action="{% url 'respond_exchange' exchange.pk 'reject' %}" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn ghost danger" style="padding:var(--s1) var(--s3);font-size:var(--t-small)">
+                      Decline
+                    </button>
+                  </form>
+                </div>
+              {% elif exchange.status == 'AWAITING_DROPOFF' or exchange.status == 'AT_COUNCIL' %}
+                <form method="post" action="{% url 'confirm_handover' exchange.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn" style="padding:var(--s2) var(--s4);font-size:var(--t-small);background:var(--ok);color:#fff">
+                    🤝 Confirm Handed Over
+                  </button>
+                </form>
+              {% elif exchange.status == 'ACTIVE_BORROWED' %}
+                <form method="post" action="{% url 'confirm_return' exchange.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn" style="padding:var(--s2) var(--s4);font-size:var(--t-small);background:var(--burgundy);color:#fff">
+                    ✓ Confirm Book Returned
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+
+          </div>
+
+          <!-- Direct In-Platform Chat Box -->
+          <div style="background:var(--paper-hover);border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);padding:var(--s3) var(--s4)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s2)">
+              <div style="font-size:var(--t-small);font-weight:700;display:flex;align-items:center;gap:6px">
+                <span>💬 Coordination Chat</span>
+                <span class="pill" style="font-size:0.65rem;background:#fff">{{ exchange.messages.all|length }}</span>
+              </div>
+              {% if exchange.borrower.profile.telegram_clean %}
+                <a href="{{ exchange.borrower.profile.telegram_url }}" target="_blank" class="small mono" style="color:#229ED9;text-decoration:none">
+                  Open Telegram @{{ exchange.borrower.profile.telegram_clean }} →
+                </a>
+              {% endif %}
+            </div>
+
+            <!-- Message Feed -->
+            <div style="max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:var(--s2);padding:var(--s2) 0">
+              {% if exchange.messages.all %}
+                {% for msg in exchange.messages.all %}
+                  <div style="display:flex;flex-direction:column;align-items:{% if msg.sender == user %}flex-end{% else %}flex-start{% endif %}">
+                    <div style="font-size:0.7rem;color:var(--muted);margin-bottom:2px">
+                      <strong>{{ msg.sender.first_name|default:msg.sender.username }}</strong> · {{ msg.created_at|date:"M d, H:i" }}
+                    </div>
+                    <div style="max-width:80%;padding:var(--s2) var(--s3);border-radius:var(--radius-sm);font-size:var(--t-small);line-height:1.4;{% if msg.sender == user %}background:var(--burgundy-wash);border:1px solid rgba(116,27,62,0.2);color:var(--ink){% else %}background:#FFFFFF;border:1px solid var(--hairline-strong);color:var(--ink){% endif %}">
+                      {{ msg.message }}
+                    </div>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <p class="small muted" style="margin:var(--s1) 0;font-style:italic">
+                  No messages yet. Send a note to coordinate meeting up on campus!
+                </p>
+              {% endif %}
+            </div>
+
+            <!-- Send Message Input -->
+            <form method="post" action="{% url 'send_exchange_message' exchange.pk %}" style="display:flex;gap:var(--s2);margin-top:var(--s3)">
+              {% csrf_token %}
+              <input type="text" name="message" placeholder="Type a message (e.g. 'I can meet outside the main cafeteria at noon')..." required autocomplete="off" style="flex:1;padding:var(--s2) var(--s3);border-radius:var(--radius-sm);border:1px solid var(--border);font-family:var(--font-sans);font-size:var(--t-small);background:#fff">
+              <button type="submit" class="btn" style="padding:var(--s2) var(--s4);font-size:var(--t-small)">
+                Send
+              </button>
+            </form>
+          </div>
+
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card" style="padding:var(--s5);text-align:center;color:var(--muted)">
+      <p class="small" style="margin:0">No incoming loan requests for your listed books yet.</p>
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

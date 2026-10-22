@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block title %}My Profile &amp; University ID — Compass Books{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Student Profile</h1>
+    <p>Manage your account identity and verified University Student ID</p>
+  </div>
+</div>
+
+<div class="grid cols-2" style="align-items:start;gap:var(--s5)">
+  <!-- Digital Campus Student ID Card -->
+  <div>
+    <div class="card" style="padding:var(--s5);background:linear-gradient(145deg, #FFFFFF, var(--paper));border:1.5px solid var(--hairline-strong);position:relative">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s4);padding-bottom:var(--s3);border-bottom:1px dashed var(--hairline-strong)">
+        <span class="label" style="letter-spacing:0.1em;color:var(--burgundy-deep)">University Student Identity</span>
+        {% if profile.is_council_member %}
+          <span class="pill warn">Student Council Officer</span>
+        {% else %}
+          <span class="pill ok">Verified Student</span>
+        {% endif %}
+      </div>
+
+      <div style="display:flex;gap:var(--s4);align-items:center;margin-bottom:var(--s4)">
+        <div style="width:64px;height:64px;border-radius:var(--radius-sm);background:var(--burgundy);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1.75rem;font-weight:700;box-shadow:var(--shadow-sm);flex-shrink:0">
+          {{ user.first_name|default:user.username|make_list|first|upper }}
+        </div>
+        <div>
+          <h2 style="font-size:1.35rem;margin-bottom:var(--s1)">
+            {{ user.get_full_name|default:user.username }}
+          </h2>
+          <div class="mono" style="font-size:0.85rem;color:var(--muted)">
+            @{{ user.username }}
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--paper-card);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:var(--s3) var(--s4);margin-bottom:var(--s4)">
+        <div class="label" style="font-size:0.7rem;margin-bottom:2px">Official Student ID</div>
+        <div class="mono" style="font-size:1.5rem;font-weight:700;color:var(--burgundy);letter-spacing:0.04em">
+          {{ profile.student_id }}
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:var(--s2);font-size:var(--t-small);color:var(--muted);padding-top:var(--s2)">
+        <div><strong>Email:</strong> {{ user.email|default:"Not provided" }}</div>
+        <div>
+          <strong>Telegram:</strong>
+          {% if profile.telegram_clean %}
+            <a href="{{ profile.telegram_url }}" target="_blank" style="color:#0088cc;font-weight:600;display:inline-flex;align-items:center;gap:4px">
+              <span>✈️</span> @{{ profile.telegram_clean }}
+            </a>
+          {% else %}
+            <span class="muted small">Not provided (add below)</span>
+          {% endif %}
+        </div>
+        <div><strong>Phone:</strong> {{ profile.phone_number|default:"Not provided" }}</div>
+        <div><strong>Registered:</strong> {{ profile.created_at|date:"M d, Y" }}</div>
+      </div>
+
+      <div style="margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--hairline);font-size:var(--t-micro);color:var(--muted-soft);line-height:1.4">
+        🤝 <strong>Direct Peer Exchange:</strong> Students coordinate meeting on campus directly via in-platform chat or Telegram to hand over and return books.
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Edit Form -->
+  <div class="card" style="padding:var(--s5)">
+    <h2 style="margin-bottom:var(--s1)">Edit Account Details</h2>
+    <p class="small muted" style="margin-bottom:var(--s4)">
+      Keep your contact details up to date so the Student Council and peer students can coordinate.
+    </p>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert error">
+          {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)">
+        <div class="field">
+          <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+          {{ form.first_name }}
+          {% if form.first_name.errors %}
+            <ul class="errorlist">{% for err in form.first_name.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+        <div class="field">
+          <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+          {{ form.last_name }}
+          {% if form.last_name.errors %}
+            <ul class="errorlist">{% for err in form.last_name.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          <ul class="errorlist">{% for err in form.email.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.student_id.id_for_label }}">{{ form.student_id.label }}</label>
+        {{ form.student_id }}
+        {% if form.student_id.help_text %}
+          <p class="helptext">{{ form.student_id.help_text }}</p>
+        {% endif %}
+        {% if form.student_id.errors %}
+          <ul class="errorlist">{% for err in form.student_id.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.telegram_username.id_for_label }}">{{ form.telegram_username.label }}</label>
+        {{ form.telegram_username }}
+        {% if form.telegram_username.help_text %}
+          <p class="helptext">{{ form.telegram_username.help_text }}</p>
+        {% endif %}
+        {% if form.telegram_username.errors %}
+          <ul class="errorlist">{% for err in form.telegram_username.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.phone_number.id_for_label }}">{{ form.phone_number.label }}</label>
+        {{ form.phone_number }}
+        {% if form.phone_number.help_text %}
+          <p class="helptext">{{ form.phone_number.help_text }}</p>
+        {% endif %}
+        {% if form.phone_number.errors %}
+          <ul class="errorlist">{% for err in form.phone_number.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div style="margin-top:var(--s4)">
+        <button type="submit" class="btn">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

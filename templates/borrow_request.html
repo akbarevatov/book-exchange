@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Request to Borrow "{{ book.title }}" — Compass Books{% endblock %}
+{% block content %}
+
+<div style="max-width:600px;margin:var(--s6) auto 0">
+  <div style="margin-bottom:var(--s5)">
+    <a href="{% url 'exchanges' %}" class="small muted" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:var(--s2)">
+      ← Back to Book Exchanges
+    </a>
+    <h1>Request to Borrow</h1>
+    <p class="muted small">
+      Submit a loan request to coordinate handover directly with the student lender.
+    </p>
+  </div>
+
+  <!-- Book Overview Card -->
+  <div class="card" style="padding:var(--s5);margin-bottom:var(--s4);background:var(--paper-hover);border:1.5px solid var(--hairline-strong);display:flex;gap:var(--s4);align-items:flex-start">
+    {% if book.cover_image %}
+      <div style="width:110px;height:150px;background:var(--paper-sunk);border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;box-shadow:var(--shadow-sm);padding:4px">
+        <img src="{{ book.cover_image.url }}" alt="{{ book.title }}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:2px">
+      </div>
+    {% else %}
+      <div style="width:100px;height:140px;border-radius:var(--radius-sm);background:linear-gradient(135deg, rgba(116,27,62,0.08), rgba(116,27,62,0.18));display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--burgundy);flex-shrink:0;border:1px solid var(--hairline-strong)">
+        <span style="font-size:2rem;margin-bottom:4px">📖</span>
+        <span class="label" style="font-size:0.6rem;color:var(--burgundy-deep)">{{ book.get_category_display }}</span>
+      </div>
+    {% endif %}
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2)">
+        <span class="pill" style="font-size:0.7rem">{{ book.get_category_display }}</span>
+        <span class="pill ok">Available</span>
+        {% if book.course_code %}
+          <span class="pill" style="background:var(--paper-card);border-color:var(--border)">{{ book.course_code }}</span>
+        {% endif %}
+      </div>
+
+      <h2 style="font-size:1.35rem;margin-bottom:var(--s1)">{{ book.title }}</h2>
+      <p class="small muted" style="margin:0 0 var(--s3)">by {{ book.author }}</p>
+
+      <div style="display:flex;flex-direction:column;gap:var(--s1);font-size:var(--t-small);color:var(--ink-secondary)">
+        <div>
+          <strong>Lender:</strong> {{ book.owner.get_full_name|default:book.owner.username }}
+          <span class="mono" style="font-size:0.75rem;padding:1px 6px;background:var(--paper-sunk);border-radius:4px;margin-left:4px">
+            ID: {{ book.owner.profile.student_id|default:"—" }}
+          </span>
+          {% if book.owner.profile.telegram_clean %}
+            <a href="{{ book.owner.profile.telegram_url }}" target="_blank" style="margin-left:6px;color:#0088cc;font-weight:600;display:inline-flex;align-items:center;gap:2px">
+              ✈️ @{{ book.owner.profile.telegram_clean }}
+            </a>
+          {% endif %}
+        </div>
+        <div><strong>Condition:</strong> {{ book.get_condition_display }}</div>
+        <div><strong>Required Loan Duration:</strong> <span class="mono">{{ book.min_duration_weeks }} to {{ book.max_duration_weeks }} weeks</span></div>
+        {% if book.lender_requirements %}
+          <div style="margin-top:var(--s2);padding:var(--s2);background:var(--paper-card);border-radius:var(--radius-sm);border:1px dashed var(--border);font-size:var(--t-micro)">
+            <strong>Lender Rules:</strong> “{{ book.lender_requirements }}”
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Borrow Request Form Card -->
+  <div class="card" style="padding:var(--s6)">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert error">
+          {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="field">
+        <label for="{{ form.requested_duration_weeks.id_for_label }}">
+          {{ form.requested_duration_weeks.label }} <span style="color:var(--risk)">*</span>
+        </label>
+        {{ form.requested_duration_weeks }}
+        <p class="helptext">{{ form.requested_duration_weeks.help_text }}</p>
+        {% if form.requested_duration_weeks.errors %}
+          <ul class="errorlist">{% for err in form.requested_duration_weeks.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.borrower_note.id_for_label }}">{{ form.borrower_note.label }}</label>
+        {{ form.borrower_note }}
+        <p class="helptext">{{ form.borrower_note.help_text }}</p>
+        {% if form.borrower_note.errors %}
+          <ul class="errorlist">{% for err in form.borrower_note.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="alert info" style="margin-top:var(--s4);margin-bottom:var(--s4)">
+        <div>
+          🏛️ <strong>Student Council Verification:</strong> Once the lender approves, they drop off the book at the Student Council desk. You will present your physical University ID (<strong>{{ user.profile.student_id }}</strong>) to collect the book in person.
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:var(--s3);margin-top:var(--s4)">
+        <button type="submit" class="btn" style="padding:var(--s3) var(--s5)">
+          Submit Borrow Request
+        </button>
+        <a href="{% url 'exchanges' %}" class="btn ghost">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block title %}{{ action_title }} — Compass Books{% endblock %}
+{% block content %}
+
+<div style="max-width:640px;margin:var(--s6) auto 0">
+  <div style="margin-bottom:var(--s5)">
+    <a href="{% url 'my_books' %}" class="small muted" style="display:inline-flex;align-items:center;gap:4px;margin-bottom:var(--s2)">
+      ← Back to My Books
+    </a>
+    <h1>{{ action_title }}</h1>
+    <p class="muted small">
+      List a textbook or reference book for peers to borrow via the Student Council desk.
+    </p>
+  </div>
+
+  <div class="card" style="padding:var(--s6)">
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert error">
+          {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="field">
+        <label for="{{ form.title.id_for_label }}">{{ form.title.label }} <span style="color:var(--risk)">*</span></label>
+        {{ form.title }}
+        {% if form.title.errors %}
+          <ul class="errorlist">{% for err in form.title.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.author.id_for_label }}">{{ form.author.label }} <span style="color:var(--risk)">*</span></label>
+        {{ form.author }}
+        {% if form.author.errors %}
+          <ul class="errorlist">{% for err in form.author.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.cover_image.id_for_label }}">{{ form.cover_image.label }}</label>
+        {% if book and book.cover_image %}
+          <div style="display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s2);padding:var(--s2);background:var(--paper-hover);border-radius:var(--radius-sm)">
+            <img src="{{ book.cover_image.url }}" alt="{{ book.title }}" style="width:60px;height:80px;object-fit:cover;border-radius:4px;box-shadow:var(--shadow-sm)">
+            <div class="small muted">
+              Current cover photo. Upload a new image below to replace it.
+            </div>
+          </div>
+        {% endif %}
+        {{ form.cover_image }}
+        <p class="helptext">{{ form.cover_image.help_text }}</p>
+        {% if form.cover_image.errors %}
+          <ul class="errorlist">{% for err in form.cover_image.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)">
+        <div class="field">
+          <label for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+          {{ form.category }}
+          {% if form.category.errors %}
+            <ul class="errorlist">{% for err in form.category.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.condition.id_for_label }}">{{ form.condition.label }}</label>
+          {{ form.condition }}
+          {% if form.condition.errors %}
+            <ul class="errorlist">{% for err in form.condition.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)">
+        <div class="field">
+          <label for="{{ form.course_code.id_for_label }}">{{ form.course_code.label }}</label>
+          {{ form.course_code }}
+          {% if form.course_code.errors %}
+            <ul class="errorlist">{% for err in form.course_code.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+
+        <div class="field">
+          <label for="{{ form.isbn.id_for_label }}">{{ form.isbn.label }}</label>
+          {{ form.isbn }}
+          {% if form.isbn.errors %}
+            <ul class="errorlist">{% for err in form.isbn.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Loan Duration Box (Strict rule >= 2 weeks) -->
+      <div style="background:var(--paper);border:1.5px solid var(--hairline-strong);border-radius:var(--radius-sm);padding:var(--s4);margin-bottom:var(--s4)">
+        <div style="display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2)">
+          <strong style="color:var(--burgundy-deep);font-size:var(--t-small)">Loan Duration Rules</strong>
+          <span class="pill" style="margin-left:auto">Min 2 Weeks Required</span>
+        </div>
+        <p class="small muted" style="margin:0 0 var(--s3);line-height:1.4">
+          To ensure borrowers have enough time for academic study, the platform enforces a strict minimum duration of 2 weeks.
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)">
+          <div class="field" style="margin-bottom:0">
+            <label for="{{ form.min_duration_weeks.id_for_label }}">{{ form.min_duration_weeks.label }}</label>
+            {{ form.min_duration_weeks }}
+            {% if form.min_duration_weeks.errors %}
+              <ul class="errorlist">{% for err in form.min_duration_weeks.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+            {% endif %}
+          </div>
+
+          <div class="field" style="margin-bottom:0">
+            <label for="{{ form.max_duration_weeks.id_for_label }}">{{ form.max_duration_weeks.label }}</label>
+            {{ form.max_duration_weeks }}
+            {% if form.max_duration_weeks.errors %}
+              <ul class="errorlist">{% for err in form.max_duration_weeks.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="{{ form.lender_requirements.id_for_label }}">{{ form.lender_requirements.label }}</label>
+        {{ form.lender_requirements }}
+        <p class="helptext">{{ form.lender_requirements.help_text }}</p>
+        {% if form.lender_requirements.errors %}
+          <ul class="errorlist">{% for err in form.lender_requirements.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div style="display:flex;align-items:center;gap:var(--s3);margin-top:var(--s5)">
+        <button type="submit" class="btn" style="padding:var(--s3) var(--s5)">
+          {% if is_edit %}Save Changes{% else %}Add to My Books{% endif %}
+        </button>
+        <a href="{% url 'my_books' %}" class="btn ghost">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

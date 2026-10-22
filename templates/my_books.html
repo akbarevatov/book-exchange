@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}My Books — Compass Books{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>My Books</h1>
+    <p>Manage the textbooks and books you are lending to peers on campus</p>
+  </div>
+  <div class="spacer"></div>
+  <a href="{% url 'add_book' %}" class="btn">
+    <span>+</span> Add a Book
+  </a>
+</div>
+
+<!-- Metrics Overview -->
+<div class="grid cols-3" style="margin-bottom:var(--s6)">
+  <div class="card" style="padding:var(--s4)">
+    <div class="label" style="margin-bottom:var(--s1)">Total Listed</div>
+    <div class="metric">{{ total_books }}</div>
+  </div>
+  <div class="card" style="padding:var(--s4)">
+    <div class="label" style="margin-bottom:var(--s1)">Available to Borrow</div>
+    <div class="metric" style="color:var(--ok)">{{ available_books }}</div>
+  </div>
+  <div class="card" style="padding:var(--s4)">
+    <div class="label" style="margin-bottom:var(--s1)">Currently Loaned</div>
+    <div class="metric" style="color:var(--warn)">{{ loaned_books }}</div>
+  </div>
+</div>
+
+{% if books %}
+  <div class="book-grid">
+    {% for book in books %}
+      <div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:var(--s5)">
+        <div>
+          <!-- Cover Photo / Stylized Fallback -->
+          <div class="book-cover-frame">
+            {% if book.cover_image %}
+              <img src="{{ book.cover_image.url }}" alt="{{ book.title }}">
+            {% else %}
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;width:100%;background:linear-gradient(135deg, rgba(116,27,62,0.05), rgba(116,27,62,0.12));color:var(--burgundy);border-radius:var(--radius-sm)">
+                <span style="font-size:2.5rem;margin-bottom:var(--s1);opacity:0.85">📖</span>
+                <span class="label" style="font-size:0.65rem;color:var(--burgundy-deep);letter-spacing:0.06em">{{ book.get_category_display }}</span>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Badges header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--s2);margin-bottom:var(--s3);flex-wrap:wrap">
+            <span class="pill" style="font-size:0.7rem">{{ book.get_category_display }}</span>
+            {% if book.is_available %}
+              <span class="pill ok">Available</span>
+            {% elif book.status == 'BORROWED' %}
+              <span class="pill warn">On Loan</span>
+            {% else %}
+              <span class="pill">{{ book.get_status_display }}</span>
+            {% endif %}
+          </div>
+
+          <!-- Title and Author -->
+          <h2 style="font-size:1.25rem;line-height:1.3;margin-bottom:var(--s1)">
+            {{ book.title }}
+          </h2>
+          <p class="muted small" style="margin:0 0 var(--s3);font-weight:500">
+            by {{ book.author }}
+          </p>
+
+          <!-- Course & Condition details -->
+          <div style="display:flex;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s3)">
+            {% if book.course_code %}
+              <span class="pill" style="background:var(--paper-sunk);color:var(--ink);border-color:var(--border)">
+                Course: <strong class="mono" style="margin-left:3px">{{ book.course_code }}</strong>
+              </span>
+            {% endif %}
+            <span class="pill" style="background:var(--paper-hover);color:var(--ink-secondary);border-color:var(--border)">
+              Condition: {{ book.get_condition_display }}
+            </span>
+          </div>
+
+          <!-- Loan Duration Spec -->
+          <div style="background:var(--paper);border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);padding:var(--s2) var(--s3);margin-bottom:var(--s3)">
+            <div class="label" style="font-size:0.65rem;margin-bottom:2px">Loan Duration Window</div>
+            <div class="mono" style="font-size:0.9rem;color:var(--burgundy);font-weight:600">
+              {{ book.min_duration_weeks }} – {{ book.max_duration_weeks }} weeks
+            </div>
+          </div>
+
+          <!-- Lender Requirements -->
+          {% if book.lender_requirements %}
+            <div style="font-size:var(--t-micro);color:var(--muted);background:var(--paper-card);border:1px dashed var(--border);border-radius:var(--radius-sm);padding:var(--s2);margin-bottom:var(--s3)">
+              <strong>Care Rules:</strong> “{{ book.lender_requirements }}”
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Card Footer Actions -->
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--s2);margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--hairline)">
+          <span class="small muted mono" style="font-size:0.7rem">
+            Added {{ book.created_at|date:"M d, Y" }}
+          </span>
+          <div style="display:flex;gap:var(--s2)">
+            <a href="{% url 'edit_book' book.pk %}" class="btn ghost" style="padding:var(--s1) var(--s3);font-size:var(--t-micro)">
+              Edit
+            </a>
+            <a href="{% url 'delete_book' book.pk %}" class="btn ghost danger" style="padding:var(--s1) var(--s3);font-size:var(--t-micro)">
+              Delete
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card empty">
+    <div class="mark">📚</div>
+    <h2>No books listed yet</h2>
+    <p>
+      Share textbooks you've completed or reference books you're willing to lend out to fellow students.
+      The Student Council manages the safe physical handover and condition inspection.
+    </p>
+    <a href="{% url 'add_book' %}" class="btn">
+      + List Your First Book
+    </a>
+  </div>
+{% endif %}
+
+{% endblock %}

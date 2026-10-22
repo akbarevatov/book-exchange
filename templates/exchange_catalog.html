@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% block title %}Exchange — Browse Available Books — Compass Books{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <h1>Exchange Catalog</h1>
+    <p>Browse textbooks and reading books available to borrow from fellow students</p>
+  </div>
+  <div class="spacer"></div>
+  {% if user.is_authenticated %}
+    <a href="{% url 'add_book' %}" class="btn">
+      <span>+</span> List a Book to Lend
+    </a>
+  {% else %}
+    <a href="{% url 'register' %}" class="btn">
+      Register to Borrow
+    </a>
+  {% endif %}
+</div>
+
+<!-- Search & Filtering Bar -->
+<div class="card" style="padding:var(--s4);margin-bottom:var(--s6);background:var(--paper-card);border:1.5px solid var(--hairline-strong)">
+  <form method="get" action="{% url 'exchange' %}" style="display:flex;gap:var(--s3);flex-wrap:wrap;align-items:center">
+    <!-- Search keyword -->
+    <div style="flex:2;min-width:240px">
+      <input type="text" name="q" value="{{ query }}" placeholder="Search by title, author, course code (e.g., CS310)..." autofocus>
+    </div>
+
+    <!-- Category filter -->
+    <div style="flex:1;min-width:180px">
+      <select name="category" onchange="this.form.submit()">
+        <option value="">All Categories</option>
+        {% for code, label in categories %}
+          <option value="{{ code }}" {% if selected_category == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Condition filter -->
+    <div style="flex:1;min-width:140px">
+      <select name="condition" onchange="this.form.submit()">
+        <option value="">All Conditions</option>
+        {% for code, label in conditions %}
+          <option value="{{ code }}" {% if selected_condition == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Action buttons -->
+    <div style="display:flex;gap:var(--s2)">
+      <button type="submit" class="btn">Search</button>
+      {% if query or selected_category or selected_condition %}
+        <a href="{% url 'exchange' %}" class="btn ghost" title="Reset all filters">Reset</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- Results Header -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s4)">
+  <span class="small muted">
+    Showing <strong>{{ books|length }}</strong> {% if books|length == 1 %}book{% else %}books{% endif %} available for exchange
+  </span>
+  <span class="small muted mono" style="font-size:0.75rem">
+    Direct peer-to-peer campus exchange
+  </span>
+</div>
+
+{% if books %}
+  <div class="book-grid">
+    {% for book in books %}
+      <div class="card" style="display:flex;flex-direction:column;justify-content:space-between;padding:var(--s5);transition:transform var(--ease), box-shadow var(--ease)">
+        <div>
+          <!-- Cover Photo / Stylized Fallback -->
+          <div class="book-cover-frame">
+            {% if book.cover_image %}
+              <img src="{{ book.cover_image.url }}" alt="{{ book.title }}">
+            {% else %}
+              <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;width:100%;background:linear-gradient(135deg, rgba(116,27,62,0.05), rgba(116,27,62,0.12));color:var(--burgundy);border-radius:var(--radius-sm)">
+                <span style="font-size:2.5rem;margin-bottom:var(--s1);opacity:0.85">📖</span>
+                <span class="label" style="font-size:0.65rem;color:var(--burgundy-deep);letter-spacing:0.06em">{{ book.get_category_display }}</span>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Badges Row -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--s2);margin-bottom:var(--s3);flex-wrap:wrap">
+            <span class="pill" style="font-size:0.7rem">{{ book.get_category_display }}</span>
+            {% if book.is_available %}
+              <span class="pill ok">Available to Borrow</span>
+            {% else %}
+              <span class="pill warn">{{ book.get_status_display }}</span>
+            {% endif %}
+          </div>
+
+          <!-- Title and Author -->
+          <h2 style="font-size:1.3rem;line-height:1.3;margin-bottom:var(--s1)">
+            {{ book.title }}
+          </h2>
+          <p class="muted small" style="margin:0 0 var(--s3);font-weight:500">
+            by {{ book.author }}
+          </p>
+
+          <!-- Course & Condition details -->
+          <div style="display:flex;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s3)">
+            {% if book.course_code %}
+              <span class="pill" style="background:var(--paper-sunk);color:var(--ink);border-color:var(--border)">
+                Course: <strong class="mono" style="margin-left:3px">{{ book.course_code }}</strong>
+              </span>
+            {% endif %}
+            <span class="pill" style="background:var(--paper-hover);color:var(--ink-secondary);border-color:var(--border)">
+              {{ book.get_condition_display }}
+            </span>
+          </div>
+
+          <!-- Loan Duration Window (Enforced Min 2 Weeks) -->
+          <div style="background:var(--paper);border:1px solid var(--hairline-strong);border-radius:var(--radius-sm);padding:var(--s2) var(--s3);margin-bottom:var(--s3)">
+            <div class="label" style="font-size:0.65rem;margin-bottom:2px">Loan Duration Window</div>
+            <div class="mono" style="font-size:0.9rem;color:var(--burgundy);font-weight:600">
+              ⏱️ {{ book.min_duration_weeks }} – {{ book.max_duration_weeks }} weeks
+            </div>
+          </div>
+
+          <!-- Lender Information with University ID & Telegram -->
+          <div style="font-size:var(--t-small);color:var(--muted);padding-top:var(--s1);margin-bottom:var(--s3)">
+            <div>Lent by: <strong>{{ book.owner.get_full_name|default:book.owner.username }}</strong></div>
+            <div style="display:flex;align-items:center;gap:var(--s2);margin-top:2px;flex-wrap:wrap">
+              <span class="mono small" style="font-size:0.75rem;color:var(--burgundy-deep)">
+                ID: {{ book.owner.profile.student_id|default:"Verified" }}
+              </span>
+              {% if book.owner.profile.telegram_clean %}
+                <a href="{{ book.owner.profile.telegram_url }}" target="_blank" style="color:#229ED9;font-size:0.75rem;text-decoration:none;font-weight:600">
+                  ✈️ @{{ book.owner.profile.telegram_clean }}
+                </a>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Care Rules -->
+          {% if book.lender_requirements %}
+            <div style="font-size:var(--t-micro);color:var(--muted);background:var(--paper-card);border:1px dashed var(--border);border-radius:var(--radius-sm);padding:var(--s2);margin-bottom:var(--s3)">
+              <strong>Care Rules:</strong> “{{ book.lender_requirements }}”
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Action / Borrow Button -->
+        <div style="margin-top:var(--s4);padding-top:var(--s3);border-top:1px solid var(--hairline)">
+          {% if user.is_authenticated and book.owner == user %}
+            <div style="display:flex;align-items:center;justify-content:center;gap:var(--s2);padding:var(--s2);background:var(--paper-hover);border-radius:var(--radius-sm)">
+              <span class="pill" style="border:none;background:transparent">Your Listed Book</span>
+            </div>
+          {% elif book.is_available %}
+            {% if user.is_authenticated %}
+              <a href="{% url 'borrow_book' book.pk %}" class="btn" style="width:100%;justify-content:center;padding:var(--s2) var(--s4)">
+                Request to Borrow →
+              </a>
+            {% else %}
+              <a href="{% url 'login' %}?next={% url 'borrow_book' book.pk %}" class="btn" style="width:100%;justify-content:center;padding:var(--s2) var(--s4)">
+                Sign in to Borrow →
+              </a>
+            {% endif %}
+          {% else %}
+            <button class="btn ghost" disabled style="width:100%;justify-content:center;opacity:0.6;cursor:not-allowed">
+              Currently on Loan
+            </button>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card empty">
+    <div class="mark">🔍</div>
+    <h2>No books found</h2>
+    <p>
+      {% if query or selected_category or selected_condition %}
+        No books matched your search criteria. Try removing filters or searching for another topic.
+      {% else %}
+        No books are currently listed for exchange yet. Be the first to share a textbook!
+      {% endif %}
+    </p>
+    {% if query or selected_category or selected_condition %}
+      <a href="{% url 'exchange' %}" class="btn ghost">Clear All Filters</a>
+    {% elif user.is_authenticated %}
+      <a href="{% url 'add_book' %}" class="btn">+ List a Book to Lend</a>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}

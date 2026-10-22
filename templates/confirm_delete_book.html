@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Delete Book — Compass Books{% endblock %}
+{% block content %}
+
+<div style="max-width:480px;margin:var(--s7) auto 0">
+  <div class="card" style="padding:var(--s6);text-align:center">
+    <div style="font-size:2.5rem;margin-bottom:var(--s3)">⚠️</div>
+    <h1 style="font-size:1.5rem;margin-bottom:var(--s2)">Remove this Book?</h1>
+    <p class="muted small" style="margin-bottom:var(--s4);line-height:1.5">
+      Are you sure you want to remove <strong>"{{ book.title }}"</strong> by {{ book.author }} from your listed books?
+    </p>
+
+    <form method="post">
+      {% csrf_token %}
+      <div style="display:flex;justify-content:center;gap:var(--s3)">
+        <a href="{% url 'my_books' %}" class="btn ghost">
+          Cancel
+        </a>
+        <button type="submit" class="btn danger">
+          Yes, Remove Book
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -158,6 +158,43 @@ a:hover { color: var(--burgundy-deep); text-decoration: underline; }
   box-shadow: 0 1px 3px rgba(116, 27, 62, 0.3);
 }
 
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 3px var(--s3) 3px var(--s1);
+  background: var(--paper-card);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  font-size: var(--t-micro);
+  box-shadow: var(--shadow-sm);
+  margin-left: var(--s2);
+}
+.user-chip-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--burgundy);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+.user-chip-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+.user-chip-id {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--burgundy);
+  padding: 1px 6px;
+  background: var(--burgundy-wash);
+  border-radius: 4px;
+}
+
 .shell {
   max-width: 1080px;
   margin: 0 auto;
@@ -189,10 +226,43 @@ a:hover { color: var(--burgundy-deep); text-decoration: underline; }
   border-radius: var(--radius);
   padding: var(--s5);
   box-shadow: var(--shadow);
+  overflow: hidden;
 }
 .grid { display: grid; gap: var(--s4); }
 .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
-.grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grid.cols-3 { grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
+.book-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 340px));
+  gap: var(--s5);
+  justify-content: start;
+}
+
+.book-cover-frame {
+  width: 100%;
+  height: 250px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: var(--s3);
+  background: var(--paper-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 1px solid var(--hairline-strong);
+  padding: var(--s2);
+}
+
+.book-cover-frame img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(27, 12, 21, 0.12);
+}
+
 
 .stack { display: flex; flex-direction: column; gap: var(--s4); }
 .row { display: flex; align-items: center; gap: var(--s3); }
@@ -287,6 +357,7 @@ a:hover { color: var(--burgundy-deep); text-decoration: underline; }
   color: var(--burgundy);
   border: 1px solid rgba(116, 27, 62, 0.22);
   line-height: 1.2;
+  white-space: nowrap;
 }
 .pill.ok {
   background: var(--ok-bg);
@@ -437,4 +508,126 @@ input[type='checkbox'] { width: auto; }
   :root { --t-display: 1.75rem; }
   .topbar { flex-wrap: wrap; gap: var(--s3); }
   .shell { padding: 0 var(--s4) var(--s7); }
+}
+
+/* --- messages & alerts --------------------------------------------------- */
+
+.alert {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--s4);
+  font-size: var(--t-small);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  line-height: 1.45;
+}
+.alert.info {
+  background: var(--paper-hover);
+  color: var(--ink);
+  border: 1px solid var(--hairline-strong);
+}
+.alert.success {
+  background: var(--ok-bg);
+  color: var(--ok);
+  border: 1px solid var(--ok-border);
+}
+.alert.warning {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border: 1px solid var(--warn-border);
+}
+.alert.error {
+  background: var(--risk-bg);
+  color: var(--risk);
+  border: 1px solid var(--risk-border);
+}
+.alert strong { font-weight: 700; }
+
+/* --- exchange stepper (Student Council lifecycle) ---------------------------- */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  margin: var(--s4) 0;
+  gap: var(--s2);
+}
+.stepper::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 20px;
+  right: 20px;
+  height: 2px;
+  background: var(--border);
+  z-index: 1;
+}
+.step-item {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+}
+.step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--paper-card);
+  border: 2px solid var(--border);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  margin-bottom: var(--s1);
+  transition: all var(--ease);
+}
+.step-item.active .step-dot {
+  border-color: var(--burgundy);
+  background: var(--burgundy);
+  color: #FFFFFF;
+  box-shadow: 0 0 0 4px var(--burgundy-wash);
+}
+.step-item.completed .step-dot {
+  border-color: var(--ok);
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.step-label {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--muted);
+  max-width: 14ch;
+}
+.step-item.active .step-label {
+  color: var(--burgundy-deep);
+  font-weight: 700;
+}
+
+/* --- verification box (Student Council Desk) ---------------------------- */
+
+.verify-box {
+  background: var(--paper);
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--s3) var(--s4);
+  margin-top: var(--s3);
+}
+.id-badge {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--burgundy-wash);
+  color: var(--burgundy-deep);
+  border: 1px solid rgba(116, 27, 62, 0.2);
+  font-weight: 700;
 }

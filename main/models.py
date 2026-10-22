@@ -1,300 +1,260 @@
 from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
-
-from . import grading
+from django.utils import timezone
 
 
 class StudentProfile(models.Model):
-    """Academic identity attached to a Django user."""
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    student_id = models.CharField(max_length=20, blank=True)
-    program = models.CharField(max_length=200, blank=True)
-    group = models.CharField(max_length=50, blank=True)
-    enrollment_year = models.PositiveIntegerField(null=True, blank=True)
-    target_gpa = models.FloatField(default=3.5)
-
-    def __str__(self):
-        return f'{self.user.get_full_name() or self.user.username} ({self.group})'
-
-
-class Semester(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    start_date = models.DateField()
-    end_date = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=False)
-
-    class Meta:
-        ordering = ['-start_date']
-
-    def __str__(self):
-        return self.name
-
-
-class Course(models.Model):
-    """A catalogue entry, shared by every student who takes it.
-
-    Deliberately has no owner: one student filling in SE201's details makes
-    them available to everyone else in the group. Personal data belongs on
-    Enrollment instead.
     """
-    code = models.CharField(max_length=20, unique=True)
-    title = models.CharField(max_length=200)
-    department = models.CharField(max_length=100, blank=True)
-    description = models.TextField(blank=True)
-    credits = models.PositiveIntegerField(default=6)
-    ects = models.PositiveIntegerField(default=6)
-    lecture_hours = models.PositiveIntegerField(default=0)
-    tutorial_hours = models.PositiveIntegerField(default=0)
-    lab_hours = models.PositiveIntegerField(default=0)
-    is_elective = models.BooleanField(default=False)
-    prerequisites = models.ManyToManyField(
-        'self', symmetrical=False, related_name='postrequisites', blank=True,
+    University student profile extension.
+    Every student registers their official University Student ID, which is verified
+    in-person by the Student Council when handing over or picking up books.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    student_id = models.CharField(
+        max_length=30,
+        unique=True,
+        help_text="University Student ID (e.g., 240418) verified in person.",
     )
-
-    class Meta:
-        ordering = ['code']
-
-    def __str__(self):
-        return f'{self.code} {self.title}'
-
-    @staticmethod
-    def normalize_code(code):
-        """Fold 'MATH 221', 'math221' and 'MATH221' onto one key.
-
-        Course codes arrive from three places — the academic plan, curriculum
-        tables, and whatever a student types — each spaced differently. Without
-        this, two students adding the same course create two catalogue entries
-        and the shared catalogue quietly stops being shared.
-        """
-        return ''.join(code.split()).upper()
-
-    def save(self, *args, **kwargs):
-        self.code = self.normalize_code(self.code)
-        return super().save(*args, **kwargs)
-
-
-class Enrollment(models.Model):
-    """One student taking one course in one semester. Ownership lives here."""
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='enrollments')
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='enrollments')
-    semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name='enrollments')
-    teacher = models.CharField(max_length=200, blank=True)
-    office = models.CharField(max_length=100, blank=True)
-    office_hours = models.CharField(max_length=100, blank=True)
-    color = models.CharField(max_length=20, blank=True)
-    target_score = models.FloatField(
-        default=85,
-        validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text='Total this student is aiming for, on a 0-100 scale.',
+    phone_number = models.CharField(
+        max_length=25,
+        blank=True,
+        help_text="Phone number for direct student contact.",
     )
-
-    class Meta:
-        unique_together = ('user', 'course', 'semester')
-        ordering = ['course__code']
-
-    def __str__(self):
-        return f'{self.user.username} — {self.course.code}'
-
-    # --- grade engine -----------------------------------------------------
-
-    def score_percent(self, assessment):
-        """This student's percentage on one assessment, or None if ungraded."""
-        if assessment.auto_from_tasks:
-            return assessment.task_average()
-        score = getattr(assessment, 'score', None)
-        return score.percent if score else None
-
-    def _weight_split(self):
-        """Return (earned points, weight still ungraded) across assessments."""
-        earned = 0.0
-        remaining = 0.0
-        for assessment in self.assessments.all():
-            percent = self.score_percent(assessment)
-            if percent is None:
-                remaining += assessment.weight
-            else:
-                earned += percent / 100 * assessment.weight
-        return earned, remaining
-
-    def total(self):
-        """Points banked so far, on a 0-100 scale."""
-        earned, _ = self._weight_split()
-        return round(earned, 1)
-
-    def projected_total(self):
-        """Total if every ungraded assessment scored the same as the current average.
-
-        Falls back to the banked total when nothing is graded yet.
-        """
-        earned, remaining = self._weight_split()
-        graded_weight = self.total_weight() - remaining
-        if graded_weight <= 0:
-            return round(earned, 1)
-        average = earned / graded_weight * 100
-        return round(earned + remaining * average / 100, 1)
-
-    def total_weight(self):
-        return sum(a.weight for a in self.assessments.all())
-
-    def letter(self):
-        """Letter for points banked so far. Only meaningful once everything is graded."""
-        return grading.letter_for(self.total())
-
-    def gpa(self):
-        return grading.gpa_for(self.total())
-
-    # Display helpers. A half-finished course has most of its weight ungraded, so
-    # total() reads as an F until the final lands — true, but useless to look at.
-    # Anything shown as "where you stand" should use the projection instead.
-
-    def projected_letter(self):
-        return grading.letter_for(self.projected_total())
-
-    def projected_gpa(self):
-        return grading.gpa_for(self.projected_total())
-
-    def is_fully_graded(self):
-        assessments = list(self.assessments.all())
-        return bool(assessments) and not any(
-            self.score_percent(a) is None for a in assessments
-        )
-
-    def has_any_grade(self):
-        """True once at least one assessment has a score.
-
-        Until then there is nothing to project from, and showing 0.0 / F for a
-        semester that has not started yet is worse than showing nothing.
-        """
-        return any(self.score_percent(a) is not None for a in self.assessments.all())
-
-    def target_status(self, target=None):
-        """What average the remaining work needs to hit the target."""
-        earned, remaining = self._weight_split()
-        goal = self.target_score if target is None else target
-        return grading.target_status(earned, remaining, goal)
-
-
-class Assessment(models.Model):
-    """A weighted component of a course grade, for one student."""
-
-    class Kind(models.TextChoices):
-        INTERMEDIATE = 'intermediate', 'Intermediate control'
-        FINAL = 'final', 'Final control'
-        COURSEWORK = 'coursework', 'Coursework'
-
-    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name='assessments')
-    name = models.CharField(max_length=100)
-    weight = models.FloatField(validators=[MinValueValidator(0), MaxValueValidator(100)])
-    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.COURSEWORK)
-    auto_from_tasks = models.BooleanField(
+    telegram_username = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="Telegram username (e.g. @akbarevatov) for direct peer exchange coordination.",
+    )
+    is_council_member = models.BooleanField(
         default=False,
-        help_text='Derive this score from the average of its graded tasks.',
+        help_text="Designates whether this student is an authorized staff member.",
     )
-    position = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        ordering = ['position', 'id']
-
-    def __str__(self):
-        return f'{self.enrollment.course.code} — {self.name}'
-
-    def task_average(self):
-        """Mean percentage across this assessment's graded tasks, or None."""
-        percentages = [t.percent for t in self.tasks.all() if t.percent is not None]
-        if not percentages:
-            return None
-        return sum(percentages) / len(percentages)
-
-
-class Score(models.Model):
-    """A mark recorded against an assessment, stored as obtained out of maximum."""
-    assessment = models.OneToOneField(Assessment, on_delete=models.CASCADE, related_name='score')
-    obtained = models.FloatField(null=True, blank=True)
-    maximum = models.FloatField(default=100, validators=[MinValueValidator(0.01)])
-    graded_at = models.DateTimeField(null=True, blank=True)
-
-    def __str__(self):
-        return f'{self.assessment} — {self.obtained}/{self.maximum}'
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     @property
-    def percent(self):
-        if self.obtained is None or not self.maximum:
-            return None
-        return self.obtained / self.maximum * 100
+    def telegram_clean(self):
+        if not self.telegram_username:
+            return ""
+        return self.telegram_username.strip().lstrip('@')
+
+    @property
+    def telegram_url(self):
+        clean = self.telegram_clean
+        return f"https://t.me/{clean}" if clean else ""
+
+    class Meta:
+        ordering = ['student_id']
+        verbose_name = 'Student Profile'
+        verbose_name_plural = 'Student Profiles'
+
+    def __str__(self):
+        full_name = self.user.get_full_name() or self.user.username
+        return f"{full_name} (ID: {self.student_id})"
 
 
-class Task(models.Model):
-    """A unit of work, with the lifecycle the university platform uses."""
+class Book(models.Model):
+    """
+    Book listed by a student for peer exchange.
+    Enforces the platform rule: minimum loan duration must be at least 2 weeks.
+    Lenders can set custom care instructions and conditions.
+    """
+    class Condition(models.TextChoices):
+        LIKE_NEW = 'LIKE_NEW', 'Like New'
+        VERY_GOOD = 'VERY_GOOD', 'Very Good'
+        GOOD = 'GOOD', 'Good'
+        FAIR = 'FAIR', 'Fair'
+
+    class Category(models.TextChoices):
+        COMPUTER_SCIENCE = 'CS', 'Computer Science & IT'
+        MATHEMATICS = 'MATH', 'Mathematics & Statistics'
+        ENGINEERING = 'ENG', 'Engineering & Physics'
+        BUSINESS = 'BUS', 'Business & Economics'
+        NATURAL_SCIENCES = 'SCI', 'Natural & Life Sciences'
+        HUMANITIES = 'HUM', 'Humanities & Social Sciences'
+        LITERATURE = 'LIT', 'Literature & Fiction'
+        LANGUAGES = 'LANG', 'Languages & Linguistics'
+        OTHER = 'OTHER', 'Other Academic'
 
     class Status(models.TextChoices):
-        NOT_STARTED = 'not_started', 'Not started'
-        IN_PROGRESS = 'in_progress', 'In progress'
-        READY_TO_SUBMIT = 'ready_to_submit', 'Ready to submit'
-        UNDER_REVIEW = 'under_review', 'Under review'
-        DONE = 'done', 'Done'
-        MISSED = 'missed', 'Not submitted'
-        ARCHIVED = 'archived', 'Archived'
+        AVAILABLE = 'AVAILABLE', 'Available'
+        RESERVED = 'RESERVED', 'Reserved'
+        BORROWED = 'BORROWED', 'Currently Loaned'
 
-    class Priority(models.TextChoices):
-        HIGH = 'high', 'High'
-        MEDIUM = 'medium', 'Medium'
-        LOW = 'low', 'Low'
-
-    # Denormalised from enrollment so standalone tasks (no course) still have an owner.
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
-    enrollment = models.ForeignKey(
-        Enrollment, on_delete=models.CASCADE, related_name='tasks', null=True, blank=True,
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='books')
+    title = models.CharField(max_length=200, help_text="Full title of the textbook or book.")
+    author = models.CharField(max_length=150, help_text="Author or primary editor.")
+    isbn = models.CharField(max_length=20, blank=True, help_text="Optional ISBN (10 or 13 digits).")
+    cover_image = models.ImageField(
+        upload_to='book_covers/',
+        blank=True,
+        null=True,
+        help_text="Upload a clear photo of the book cover showing its physical condition.",
     )
-    assessment = models.ForeignKey(
-        Assessment, on_delete=models.SET_NULL, related_name='tasks', null=True, blank=True,
-        help_text='Link to an assessment to feed its auto-calculated score.',
+    category = models.CharField(
+        max_length=10,
+        choices=Category.choices,
+        default=Category.COMPUTER_SCIENCE,
     )
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NOT_STARTED)
-    priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.MEDIUM)
-    difficulty = models.PositiveIntegerField(
-        default=3, validators=[MinValueValidator(1), MaxValueValidator(5)],
+    course_code = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="e.g., CS310, MATH221 (optional course tag).",
     )
-    due_at = models.DateTimeField(null=True, blank=True)
-    estimated_minutes = models.PositiveIntegerField(null=True, blank=True)
-    actual_minutes = models.PositiveIntegerField(null=True, blank=True)
-    obtained = models.FloatField(null=True, blank=True)
-    maximum = models.FloatField(null=True, blank=True)
+    condition = models.CharField(
+        max_length=15,
+        choices=Condition.choices,
+        default=Condition.VERY_GOOD,
+    )
+    min_duration_weeks = models.PositiveIntegerField(
+        default=2,
+        validators=[MinValueValidator(2)],
+        help_text="Minimum loan duration in weeks (strictly >= 2 weeks).",
+    )
+    max_duration_weeks = models.PositiveIntegerField(
+        default=4,
+        validators=[MinValueValidator(2)],
+        help_text="Maximum loan duration in weeks.",
+    )
+    lender_requirements = models.TextField(
+        blank=True,
+        help_text="Your rules for the borrower (e.g., 'No highlighter markings', 'Return with dust jacket').",
+    )
+    status = models.CharField(
+        max_length=15,
+        choices=Status.choices,
+        default=Status.AVAILABLE,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['due_at', '-priority']
+        ordering = ['-created_at']
+        verbose_name = 'Book'
+        verbose_name_plural = 'Books'
+
+    def clean(self):
+        super().clean()
+        if self.min_duration_weeks is not None and self.min_duration_weeks < 2:
+            raise ValidationError({
+                'min_duration_weeks': 'Minimum loan duration must be at least 2 weeks.'
+            })
+        if self.min_duration_weeks is not None and self.max_duration_weeks is not None:
+            if self.max_duration_weeks < self.min_duration_weeks:
+                raise ValidationError({
+                    'max_duration_weeks': f'Maximum loan duration cannot be less than minimum loan duration ({self.min_duration_weeks} weeks).'
+                })
 
     def __str__(self):
-        return self.title
+        return f"{self.title} by {self.author} ({self.owner.username})"
 
     @property
-    def percent(self):
-        if self.obtained is None or not self.maximum:
-            return None
-        return self.obtained / self.maximum * 100
-
-    @property
-    def is_open(self):
-        return self.status not in (self.Status.DONE, self.Status.ARCHIVED, self.Status.MISSED)
+    def is_available(self):
+        return self.status == self.Status.AVAILABLE
 
 
-class Note(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notes')
-    enrollment = models.ForeignKey(
-        Enrollment, on_delete=models.CASCADE, related_name='notes', null=True, blank=True,
+class ExchangeRequest(models.Model):
+    """
+    Peer-to-peer book exchange loan lifecycle managed through the Student Council desk.
+    """
+    class Status(models.TextChoices):
+        PENDING_APPROVAL = 'PENDING_APPROVAL', 'Pending Lender Approval'
+        AWAITING_DROPOFF = 'AWAITING_DROPOFF', 'Accepted — Coordinating Handover'
+        ACTIVE_BORROWED = 'ACTIVE_BORROWED', 'Active Loan'
+        COMPLETED = 'COMPLETED', 'Completed & Returned'
+        REJECTED = 'REJECTED', 'Declined'
+        CANCELLED = 'CANCELLED', 'Cancelled'
+        AT_COUNCIL = 'AT_COUNCIL', 'Coordinating Handover'
+        RETURNED_TO_COUNCIL = 'RETURNED_TO_COUNCIL', 'Returned'
+
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='exchanges')
+    borrower = models.ForeignKey(User, on_delete=models.CASCADE, related_name='borrowed_exchanges')
+    requested_duration_weeks = models.PositiveIntegerField(
+        default=2,
+        help_text="Requested duration in weeks (strictly >= book's minimum).",
     )
-    title = models.CharField(max_length=200)
-    body = models.TextField(blank=True)
-    pinned = models.BooleanField(default=False)
+    borrower_note = models.TextField(
+        blank=True,
+        help_text="Note to lender regarding study purpose or course requirement.",
+    )
+    status = models.CharField(
+        max_length=25,
+        choices=Status.choices,
+        default=Status.PENDING_APPROVAL,
+    )
+
+    # Lifecycle timestamps
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    dropped_off_at = models.DateTimeField(null=True, blank=True)
+    picked_up_at = models.DateTimeField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    returned_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    # Optional peer exchange meeting notes
+    dropoff_condition_notes = models.TextField(
+        blank=True,
+        help_text="Meeting / handover notes between students.",
+    )
+    return_condition_notes = models.TextField(
+        blank=True,
+        help_text="Return condition notes.",
+    )
 
     class Meta:
-        ordering = ['-pinned', '-updated_at']
+        ordering = ['-created_at']
+        verbose_name = 'Book Exchange'
+        verbose_name_plural = 'Book Exchanges'
+
+    def clean(self):
+        super().clean()
+        if hasattr(self, 'book') and hasattr(self, 'borrower') and self.book_id and self.borrower_id:
+            if self.book.owner_id == self.borrower_id:
+                raise ValidationError("You cannot borrow your own book.")
+            if self.requested_duration_weeks:
+                if self.requested_duration_weeks < self.book.min_duration_weeks:
+                    raise ValidationError({
+                        'requested_duration_weeks': f"Requested duration must be at least {self.book.min_duration_weeks} weeks."
+                    })
+                if self.requested_duration_weeks > self.book.max_duration_weeks:
+                    raise ValidationError({
+                        'requested_duration_weeks': f"Requested duration cannot exceed {self.book.max_duration_weeks} weeks."
+                    })
+
+    @property
+    def is_overdue(self):
+        if self.status == self.Status.ACTIVE_BORROWED and self.due_date:
+            return self.due_date < timezone.now().date()
+        return False
+
+    @property
+    def days_remaining(self):
+        if self.status == self.Status.ACTIVE_BORROWED and self.due_date:
+            return (self.due_date - timezone.now().date()).days
+        return None
 
     def __str__(self):
-        return self.title
+        return f"{self.borrower.username} borrowed {self.book.title} ({self.get_status_display()})"
+
+
+class ExchangeMessage(models.Model):
+    """
+    Direct in-platform chat messages between lender and borrower to coordinate
+    meeting location and time on campus.
+    """
+    exchange = models.ForeignKey(ExchangeRequest, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_exchange_messages')
+    message = models.TextField(help_text="Message text for meeting coordination.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+        verbose_name = 'Exchange Message'
+        verbose_name_plural = 'Exchange Messages'
+
+    def __str__(self):
+        return f"{self.sender.username} on #{self.exchange_id} ({self.created_at:%b %d, %H:%M})"
+

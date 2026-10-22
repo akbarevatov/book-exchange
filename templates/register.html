@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Register Student Account — Compass Books{% endblock %}
+{% block content %}
+
+<div style="max-width:540px;margin:var(--s6) auto 0">
+  <div style="text-align:center;margin-bottom:var(--s5)">
+    <div style="font-size:2.5rem;margin-bottom:var(--s2)">🎓</div>
+    <h1>Join Compass Books</h1>
+    <p class="muted small" style="max-width:440px;margin:var(--s1) auto 0;line-height:1.5">
+      The direct peer-to-peer campus book exchange platform for students.
+    </p>
+  </div>
+
+  <div class="card" style="padding:var(--s6)">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert error">
+          {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)">
+        <div class="field">
+          <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+          {{ form.first_name }}
+          {% if form.first_name.errors %}
+            <ul class="errorlist">{% for err in form.first_name.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+        <div class="field">
+          <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+          {{ form.last_name }}
+          {% if form.last_name.errors %}
+            <ul class="errorlist">{% for err in form.last_name.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+        {{ form.username }}
+        {% if form.username.help_text %}
+          <p class="helptext">{{ form.username.help_text }}</p>
+        {% endif %}
+        {% if form.username.errors %}
+          <ul class="errorlist">{% for err in form.username.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          <ul class="errorlist">{% for err in form.email.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="field" style="background:var(--burgundy-wash);padding:var(--s3);border-radius:var(--radius-sm);border:1px solid rgba(116,27,62,0.18)">
+        <div style="display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s1)">
+          <label for="{{ form.student_id.id_for_label }}" style="margin:0;color:var(--burgundy-deep)">
+            {{ form.student_id.label }} <span style="color:var(--risk)">*</span>
+          </label>
+          <span class="pill" style="margin-left:auto">Mandatory</span>
+        </div>
+        {{ form.student_id }}
+        <p class="helptext" style="color:var(--muted-soft)">
+          {{ form.student_id.help_text }}
+        </p>
+        {% if form.student_id.errors %}
+          <ul class="errorlist">{% for err in form.student_id.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.telegram_username.id_for_label }}">{{ form.telegram_username.label }}</label>
+        {{ form.telegram_username }}
+        {% if form.telegram_username.help_text %}
+          <p class="helptext">{{ form.telegram_username.help_text }}</p>
+        {% endif %}
+        {% if form.telegram_username.errors %}
+          <ul class="errorlist">{% for err in form.telegram_username.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="{{ form.phone_number.id_for_label }}">{{ form.phone_number.label }}</label>
+        {{ form.phone_number }}
+        {% if form.phone_number.help_text %}
+          <p class="helptext">{{ form.phone_number.help_text }}</p>
+        {% endif %}
+        {% if form.phone_number.errors %}
+          <ul class="errorlist">{% for err in form.phone_number.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)">
+        <div class="field">
+          <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+          {{ form.password }}
+          {% if form.password.errors %}
+            <ul class="errorlist">{% for err in form.password.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+        <div class="field">
+          <label for="{{ form.confirm_password.id_for_label }}">{{ form.confirm_password.label }}</label>
+          {{ form.confirm_password }}
+          {% if form.confirm_password.errors %}
+            <ul class="errorlist">{% for err in form.confirm_password.errors %}<li>{{ err }}</li>{% endfor %}</ul>
+          {% endif %}
+        </div>
+      </div>
+
+      <div style="margin-top:var(--s5)">
+        <button type="submit" class="btn" style="width:100%;justify-content:center;padding:var(--s3)">
+          Complete Registration &amp; Link University ID
+        </button>
+      </div>
+    </form>
+
+    <div style="text-align:center;margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--hairline)">
+      <p class="small muted" style="margin:0">
+        Already registered? <a href="{% url 'login' %}">Sign in to your account</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

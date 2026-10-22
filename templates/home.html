@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Compass Books — Student Book Exchange{% endblock %}
+{% block content %}
+
+<div class="page-head" style="margin-top:var(--s7);margin-bottom:var(--s6);text-align:center;display:block">
+  <div class="mark" style="font-family:var(--font-display);font-size:3.5rem;color:var(--burgundy);margin-bottom:var(--s2)">📖</div>
+  <h1 style="font-size:2.75rem;letter-spacing:-0.02em;margin-bottom:var(--s3)">Compass Books</h1>
+  <p style="font-size:1.15rem;color:var(--muted);max-width:580px;margin:0 auto var(--s5);line-height:1.6">
+    A university platform for peer-to-peer textbook and book sharing with physical Student Council verification.
+  </p>
+
+  <div style="display:flex;align-items:center;justify-content:center;gap:var(--s3);flex-wrap:wrap">
+    <a href="{% url 'exchange' %}" class="btn" style="padding:var(--s3) var(--s5);font-size:var(--t-body)">
+      Browse Available Books →
+    </a>
+    {% if user.is_authenticated %}
+      <a href="{% url 'my_books' %}" class="btn ghost" style="padding:var(--s3) var(--s5);font-size:var(--t-body)">
+        My Books ({{ user.books.count }})
+      </a>
+      <a href="{% url 'exchanges' %}" class="btn ghost" style="padding:var(--s3) var(--s5);font-size:var(--t-body)">
+        Book Exchanges
+      </a>
+    {% else %}
+      <a href="{% url 'register' %}" class="btn ghost" style="padding:var(--s3) var(--s5);font-size:var(--t-body)">
+        Register with University ID
+      </a>
+      <a href="{% url 'login' %}" class="btn ghost" style="padding:var(--s3) var(--s5);font-size:var(--t-body)">
+        Sign in
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid cols-3" style="margin-top:var(--s7)">
+  <div class="card" style="padding:var(--s5)">
+    <div style="font-size:1.75rem;margin-bottom:var(--s2)">🪪</div>
+    <h2 style="font-size:1.15rem;margin-bottom:var(--s2)">1. University ID Required</h2>
+    <p class="small muted" style="line-height:1.6">
+      Every student links their official campus ID upon registration. This ensures trusted accountability across the entire student body.
+    </p>
+  </div>
+
+  <div class="card" style="padding:var(--s5)">
+    <div style="font-size:1.75rem;margin-bottom:var(--s2)">🤝</div>
+    <h2 style="font-size:1.15rem;margin-bottom:var(--s2)">2. Safe Peer Exchange</h2>
+    <p class="small muted" style="line-height:1.6">
+      Students list available textbooks with custom lending conditions and a minimum 2-week loan period for serious study.
+    </p>
+  </div>
+
+  <div class="card" style="padding:var(--s5)">
+    <div style="font-size:1.75rem;margin-bottom:var(--s2)">🏛️</div>
+    <h2 style="font-size:1.15rem;margin-bottom:var(--s2)">3. Student Council Escrow</h2>
+    <p class="small muted" style="line-height:1.6">
+      No awkward meetups. Books are dropped off and collected at the Student Council desk with physical ID and condition verification.
+    </p>
+  </div>
+</div>
+
+{% endblock %}
